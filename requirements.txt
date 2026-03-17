@@ -6,3 +6,6 @@ pillow
 pandas
 matplotlib
 reportlab
+plotly
+scikit-learn
+seaborn
