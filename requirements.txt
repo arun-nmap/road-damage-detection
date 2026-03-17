@@ -7,5 +7,5 @@ pandas
 matplotlib
 reportlab
 plotly
-scikit-learn
 seaborn
+scikit-learn
