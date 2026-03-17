@@ -4,8 +4,5 @@ opencv-python-headless
 numpy
 pillow
 pandas
-matplotlib
 reportlab
-plotly
-seaborn
-scikit-learn
+matplotlib
