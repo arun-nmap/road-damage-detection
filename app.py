@@ -17,6 +17,8 @@ st.set_page_config(page_title="Road Damage Detection AI", layout="wide")
 st.title("Road Damage Detection System")
 st.caption("AI-powered UAV Inspection with Smart Reporting")
 
+st.info("Step 1: Capture/Upload Image → Step 2: Detect → Step 3: Download Report")
+
 # ---------------- SIDEBAR ----------------
 st.sidebar.header("⚙️ Settings")
 confidence = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.3)
@@ -80,7 +82,8 @@ if image is not None:
     frame = np.array(image)
     frame = cv2.resize(frame, (640, 640))
 
-    results = model(frame)[0]
+    with st.spinner("🔍 Analyzing road condition..."):
+        results = model(frame)[0]
 
     damage_count = 0
 
@@ -97,18 +100,32 @@ if image is not None:
     col3.image(image, caption="Original", use_column_width=True)
     col4.image(heatmap, caption="Heatmap", use_column_width=True)
 
-    # METRICS
+    # ---------------- METRICS ----------------
     st.markdown("### 📊 Analysis")
-    c1, c2, c3 = st.columns(3)
+
+    # Severity logic (ADDED ONLY)
+    if damage_count == 0:
+        severity = "No Damage"
+    elif damage_count <= 2:
+        severity = "Low"
+    elif damage_count <= 5:
+        severity = "Medium"
+    else:
+        severity = "High"
+
+    damage_percent = min((damage_count / 10) * 100, 100)
+
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Damages", damage_count)
     c2.metric("Confidence", confidence)
-    c3.metric("Model", "YOLOv8")
+    c3.metric("Severity", severity)
+    c4.metric("Damage %", f"{damage_percent:.2f}%")
 
     # ---------------- STATUS MESSAGE ----------------
     if damage_count > 0:
-        st.error(f"🚨 {damage_count} Damage(s) Detected!")
+        st.error(f"🚨 ALERT: {damage_count} damages detected. Immediate repair recommended.")
     else:
-        st.success("✅ No Damage Detected")
+        st.success("✅ Road condition is good. No repair needed.")
 
     # LOCATION
     st.markdown("### 🗺️ Location")
@@ -125,35 +142,31 @@ if image is not None:
         original_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         heatmap_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
 
-        # Save images
         cv2.imwrite(original_file.name, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         cv2.imwrite(heatmap_file.name, heatmap)
 
-        # Chart
         plt.figure()
         plt.bar(["Accuracy","Precision","Recall"], [92,90,89])
         plt.title("Model Performance")
         plt.savefig(chart_file.name)
         plt.close()
 
-        # Build PDF
         doc = SimpleDocTemplate(pdf_file.name)
         styles = getSampleStyleSheet()
 
         content = []
 
-        # Title
         content.append(Paragraph("Road Damage Detection Report", styles['Title']))
         content.append(Spacer(1, 12))
 
-        # Timestamp + Location
         content.append(Paragraph(f"Timestamp: {datetime.now()}", styles['Normal']))
         content.append(Paragraph(f"Location: Lat {lat}, Lon {lon}", styles['Normal']))
         content.append(Spacer(1, 12))
 
-        # Metrics + Status
         content.append(Paragraph(f"Damages Detected: {damage_count}", styles['Normal']))
         content.append(Paragraph(f"Confidence: {confidence}", styles['Normal']))
+        content.append(Paragraph(f"Severity: {severity}", styles['Normal']))
+        content.append(Paragraph(f"Damage %: {damage_percent:.2f}%", styles['Normal']))
 
         if damage_count > 0:
             content.append(Paragraph('<font color="red">Status: DAMAGE DETECTED</font>', styles['Normal']))
@@ -162,21 +175,16 @@ if image is not None:
 
         content.append(Spacer(1, 12))
 
-        # Side-by-side images
-        content.append(Paragraph("Detection Visualization", styles['Heading2']))
         table_img = Table([
-            [RLImage(original_file.name, width=200, height=150),
-             RLImage(heatmap_file.name, width=200, height=150)]
+            [RLImage(original_file.name, 200, 150),
+             RLImage(heatmap_file.name, 200, 150)]
         ])
         content.append(table_img)
         content.append(Spacer(1, 12))
 
-        # Chart
-        content.append(Paragraph("Performance Chart", styles['Heading2']))
-        content.append(RLImage(chart_file.name, width=400, height=200))
+        content.append(RLImage(chart_file.name, 400, 200))
         content.append(Spacer(1, 12))
 
-        # Table
         table_data = [
             ["Model","Accuracy","Precision","Recall"],
             ["YOLOv5","85","82","80"],
@@ -196,8 +204,10 @@ if image is not None:
 
         doc.build(content)
 
+        file_name = f"road_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
         with open(pdf_file.name, "rb") as f:
-            st.download_button("📥 Download Report", f, file_name="road_damage_report.pdf")
+            st.download_button("📥 Download Report", f, file_name=file_name)
 
 # MODEL COMPARISON UI
 st.markdown("### 📊 Model Comparison")
@@ -211,4 +221,4 @@ st.dataframe(df)
 st.bar_chart(df.set_index("Model"))
 
 st.markdown("---")
-st.caption("All rights reserved to Haakwin IT solutions ")
+st.caption("All rights reserved to Haakwin IT solutions")
